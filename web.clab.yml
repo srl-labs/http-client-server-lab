@@ -1,0 +1,40 @@
+name: web
+
+topology:
+  nodes:
+    srlinux: 
+      mgmt-ipv4: 172.20.20.5
+      kind: nokia_srlinux
+      image: ghcr.io/nokia/srlinux:24.3.2
+      type: ixrd3l
+      startup-config: srlinux.partial.cfg
+    sros:
+      mgmt-ipv4: 172.20.20.6
+      kind: nokia_sros
+      image: registry.srlinux.dev/pub/vr-sros:24.3.R1
+      license: license.key
+      type: sr-1s
+      startup-config: sros.partial.cfg
+    client:
+      mgmt-ipv4: 172.20.20.7
+      kind: linux
+      image: ghcr.io/srl-labs/network-multitool
+      exec:
+        - ip addr add 10.0.0.1/31 dev eth1
+        - ip r add 10.0.2.0/31 via 10.0.0.0
+        - bash -c "nohup /usr/bin/socat TCP4-LISTEN:1000,fork,reuseaddr TCP:10.0.2.1:80 &"
+    http-server: 
+      mgmt-ipv4: 172.20.20.8
+      kind: linux
+      image: c-nginx:latest
+      binds:
+        - ./html:/usr/share/nginx/html/
+      exec:
+        - ip addr add 10.0.2.1/31 dev eth1
+        - ip r add 10.0.0.0/31 via 10.0.2.0
+
+  links:
+    - endpoints: ["client:eth1", "srlinux:e1-1"]
+    - endpoints: ["srlinux:e1-2", "sros:eth2"] 
+    - endpoints: ["sros:eth1", "http-server:eth1"]  
+
